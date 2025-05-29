@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Database, Home } from 'lucide-react';
+import { Database, Home, FolderTree } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   return (
@@ -25,6 +25,13 @@ const Navbar: React.FC = () => {
           >
             <Database size={18} />
             <span>Categoria</span>
+          </Link>
+          <Link 
+            to="/grupo" 
+            className="flex items-center space-x-1 hover:text-blue-300 transition-colors"
+          >
+            <FolderTree size={18} />
+            <span>Grupo</span>
           </Link>
         </div>
       </div>

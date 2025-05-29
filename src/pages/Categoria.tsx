@@ -1,14 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileSpreadsheet, Check, AlertCircle, Download, Eye, Save } from 'lucide-react';
+import { Upload, FileSpreadsheet, Check, AlertCircle, Download, Eye, Save, Link as LinkIcon } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
-
-interface UploadStatus {
-  status: 'idle' | 'validating' | 'preview' | 'uploading' | 'success' | 'error';
-  message: string;
-  totalRows?: number;
-  processedRows?: number;
-}
+import RelationshipsModal from '../components/categoria/RelationshipsModal';
 
 interface ValidationError {
   row: number;
@@ -17,14 +11,15 @@ interface ValidationError {
   message: string;
 }
 
+type ImportStatus = 'idle' | 'preview' | 'validating' | 'validated' | 'uploading' | 'success' | 'error';
+
 const Categoria: React.FC = () => {
-  const [uploadStatus, setUploadStatus] = useState<UploadStatus>({ 
-    status: 'idle', 
-    message: '' 
-  });
+  const [status, setStatus] = useState<ImportStatus>('idle');
   const [isDragging, setIsDragging] = useState(false);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [previewData, setPreviewData] = useState<any[]>([]);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [isRelationshipsModalOpen, setIsRelationshipsModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const downloadTemplate = () => {
@@ -52,7 +47,7 @@ const Categoria: React.FC = () => {
       [''],
       ['1. codigo: Código único da categoria (ex: 001, 002, etc)'],
       ['2. nome: Nome da categoria'],
-      ['3. descricao: Descrição detalhada da categoria'],
+      ['3. descricao: Descrição detalhada da categoria (opcional)'],
       ['4. tipo: Deve ser "Receita" ou "Despesa"'],
       ['5. ativo: Deve ser "TRUE" ou "FALSE"'],
       [''],
@@ -72,7 +67,7 @@ const Categoria: React.FC = () => {
     const errors: ValidationError[] = [];
 
     data.forEach((row, index) => {
-      const rowNumber = index + 2; // +2 porque a primeira linha é cabeçalho e Excel começa em 1
+      const rowNumber = index + 2;
 
       if (!row.codigo) {
         errors.push({
@@ -89,15 +84,6 @@ const Categoria: React.FC = () => {
           field: 'nome',
           value: '',
           message: 'Nome é obrigatório'
-        });
-      }
-
-      if (!row.descricao) {
-        errors.push({
-          row: rowNumber,
-          field: 'descricao',
-          value: '',
-          message: 'Descrição é obrigatória'
         });
       }
 
@@ -125,6 +111,15 @@ const Categoria: React.FC = () => {
     return errors;
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
   const processFile = async (file: File) => {
     const validTypes = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -133,17 +128,15 @@ const Categoria: React.FC = () => {
     ];
     
     if (!validTypes.includes(file.type)) {
-      setUploadStatus({
-        status: 'error',
+      setStatus('error');
+      setValidationErrors([{
+        row: 0,
+        field: 'file',
+        value: file.type,
         message: 'Formato de arquivo inválido. Por favor, envie uma planilha Excel ou CSV.'
-      });
+      }]);
       return;
     }
-
-    setUploadStatus({
-      status: 'validating',
-      message: 'Validando dados...'
-    });
 
     try {
       const data = await file.arrayBuffer();
@@ -152,82 +145,27 @@ const Categoria: React.FC = () => {
       const jsonData = XLSX.utils.sheet_to_json(worksheet);
       
       if (jsonData.length === 0) {
-        setUploadStatus({
-          status: 'error',
+        setStatus('error');
+        setValidationErrors([{
+          row: 0,
+          field: 'file',
+          value: '',
           message: 'A planilha está vazia. Por favor, verifique o arquivo e tente novamente.'
-        });
+        }]);
         return;
       }
 
-      const errors = validateData(jsonData);
-      setValidationErrors(errors);
-
-      if (errors.length > 0) {
-        setUploadStatus({
-          status: 'error',
-          message: `Encontrados ${errors.length} erros na planilha. Por favor, corrija os erros e tente novamente.`
-        });
-        return;
-      }
-
-      const formattedData = jsonData.map(row => ({
-        ...row,
-        tipo: String(row.tipo).trim(),
-        ativo: String(row.ativo).trim().toLowerCase() === 'true'
-      }));
-
-      setPreviewData(formattedData);
-      setUploadStatus({
-        status: 'preview',
-        message: 'Dados validados com sucesso! Revise os dados antes de fazer o upload.',
-        totalRows: formattedData.length
-      });
+      setPreviewData(jsonData);
+      setStatus('preview');
     } catch (error) {
-      console.error('Erro ao processar arquivo:', error);
-      setUploadStatus({
-        status: 'error',
+      setStatus('error');
+      setValidationErrors([{
+        row: 0,
+        field: 'file',
+        value: '',
         message: `Erro ao processar arquivo: ${(error as Error).message}`
-      });
+      }]);
     }
-  };
-
-  const handleUpload = async () => {
-    setUploadStatus({
-      status: 'uploading',
-      message: 'Importando dados para o Supabase...',
-      totalRows: previewData.length,
-      processedRows: 0
-    });
-
-    try {
-      const { error } = await supabase
-        .from('categorias')
-        .insert(previewData);
-
-      if (error) throw error;
-
-      setUploadStatus({
-        status: 'success',
-        message: `Importação concluída com sucesso! ${previewData.length} registros foram importados.`,
-        totalRows: previewData.length,
-        processedRows: previewData.length
-      });
-    } catch (error) {
-      console.error('Erro ao fazer upload:', error);
-      setUploadStatus({
-        status: 'error',
-        message: `Erro ao fazer upload: ${(error as Error).message}`
-      });
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = () => {
-    setIsDragging(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -247,35 +185,87 @@ const Categoria: React.FC = () => {
     }
   };
 
-  const triggerFileInput = () => {
+  const handleValidate = () => {
+    setStatus('validating');
+    const errors = validateData(previewData);
+    setValidationErrors(errors);
+    setStatus('validated');
+  };
+
+  const handleUpload = async () => {
+    setStatus('uploading');
+    setUploadProgress({ current: 0, total: previewData.length });
+
+    try {
+      const formattedData = previewData.map(row => ({
+        ...row,
+        tipo: String(row.tipo).trim(),
+        ativo: String(row.ativo).trim().toLowerCase() === 'true',
+        grupo_id: null // Campo grupo_id sempre vazio
+      }));
+
+      const { error } = await supabase
+        .from('categorias')
+        .insert(formattedData);
+
+      if (error) throw error;
+
+      setStatus('success');
+      setUploadProgress({ current: previewData.length, total: previewData.length });
+    } catch (error) {
+      setStatus('error');
+      setValidationErrors([{
+        row: 0,
+        field: 'upload',
+        value: '',
+        message: `Erro ao fazer upload: ${(error as Error).message}`
+      }]);
+    }
+  };
+
+  const resetForm = () => {
+    setStatus('idle');
+    setValidationErrors([]);
+    setPreviewData([]);
+    setUploadProgress({ current: 0, total: 0 });
     if (fileInputRef.current) {
-      fileInputRef.current.click();
+      fileInputRef.current.value = '';
     }
   };
 
   return (
     <div className="max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Importação de Categorias</h1>
-        <p className="text-gray-600">
-          Faça upload de uma planilha Excel ou CSV para importar dados de categorias em massa.
-        </p>
-        <button
-          onClick={downloadTemplate}
-          className="mt-4 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
-        >
-          <Download size={20} />
-          <span>Baixar Planilha Modelo</span>
-        </button>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Importação de Categorias</h1>
+          <p className="text-gray-600">
+            Faça upload de uma planilha Excel ou CSV para importar dados de categorias em massa.
+          </p>
+        </div>
+        <div className="flex gap-4">
+          <button
+            onClick={() => setIsRelationshipsModalOpen(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
+          >
+            <LinkIcon size={20} />
+            <span>Relacionamentos</span>
+          </button>
+          <button
+            onClick={downloadTemplate}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
+          >
+            <Download size={20} />
+            <span>Baixar Planilha Modelo</span>
+          </button>
+        </div>
       </div>
 
       <div 
         className={`border-2 border-dashed rounded-lg p-10 text-center mb-8 transition-colors
           ${isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'}
-          ${uploadStatus.status === 'uploading' ? 'bg-blue-50' : ''}
-          ${uploadStatus.status === 'success' ? 'bg-green-50 border-green-500' : ''}
-          ${uploadStatus.status === 'error' ? 'bg-red-50 border-red-500' : ''}
-        `}
+          ${status === 'uploading' ? 'bg-blue-50' : ''}
+          ${status === 'success' ? 'bg-green-50 border-green-500' : ''}
+          ${status === 'error' ? 'bg-red-50 border-red-500' : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -288,13 +278,13 @@ const Categoria: React.FC = () => {
           className="hidden"
         />
 
-        {uploadStatus.status === 'idle' && (
+        {status === 'idle' && (
           <>
             <FileSpreadsheet size={64} className="mx-auto text-gray-400 mb-4" />
             <h2 className="text-xl font-semibold mb-2">Arraste e solte sua planilha aqui</h2>
             <p className="text-gray-500 mb-6">ou</p>
             <button
-              onClick={triggerFileInput}
+              onClick={() => fileInputRef.current?.click()}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
             >
               <Upload size={20} />
@@ -306,20 +296,11 @@ const Categoria: React.FC = () => {
           </>
         )}
 
-        {uploadStatus.status === 'validating' && (
-          <div className="text-center">
-            <div className="animate-pulse">
-              <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            </div>
-            <h2 className="text-xl font-semibold mb-4 text-blue-700">Validando dados...</h2>
-          </div>
-        )}
-
-        {uploadStatus.status === 'preview' && (
+        {status === 'preview' && (
           <div className="text-center">
             <Eye size={64} className="mx-auto text-blue-500 mb-4" />
             <h2 className="text-xl font-semibold mb-4 text-blue-700">
-              {previewData.length} registros prontos para importação
+              {previewData.length} registros carregados
             </h2>
             <div className="mb-6 max-h-60 overflow-y-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -351,53 +332,45 @@ const Categoria: React.FC = () => {
               )}
             </div>
             <button
-              onClick={handleUpload}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
+              onClick={handleValidate}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
             >
-              <Save size={20} />
-              <span>Confirmar e Importar</span>
+              <Eye size={20} />
+              <span>Validar Dados</span>
             </button>
           </div>
         )}
 
-        {uploadStatus.status === 'uploading' && (
+        {status === 'validating' && (
           <div className="text-center">
             <div className="animate-pulse">
               <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             </div>
-            <h2 className="text-xl font-semibold mb-4 text-blue-700">{uploadStatus.message}</h2>
-            {uploadStatus.totalRows && (
-              <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5 mb-4">
-                <div 
-                  className="bg-blue-600 h-2.5 rounded-full" 
-                  style={{ 
-                    width: `${Math.round((uploadStatus.processedRows || 0) / uploadStatus.totalRows * 100)}%` 
-                  }}
-                ></div>
-              </div>
-            )}
-            <p className="text-gray-600">Por favor, não feche esta janela durante o processamento.</p>
+            <h2 className="text-xl font-semibold mb-4 text-blue-700">Validando dados...</h2>
           </div>
         )}
 
-        {uploadStatus.status === 'success' && (
-          <div className="text-center">
-            <Check size={64} className="mx-auto text-green-500 mb-4" />
-            <h2 className="text-xl font-semibold mb-4 text-green-700">{uploadStatus.message}</h2>
-            <button
-              onClick={() => setUploadStatus({ status: 'idle', message: '' })}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors"
-            >
-              Importar mais dados
-            </button>
-          </div>
-        )}
-
-        {uploadStatus.status === 'error' && (
-          <div className="text-center">
-            <AlertCircle size={64} className="mx-auto text-red-500 mb-4" />
-            <h2 className="text-xl font-semibold mb-4 text-red-700">{uploadStatus.message}</h2>
-            {validationErrors.length > 0 && (
+        {status === 'validated' && (
+          validationErrors.length === 0 ? (
+            <div className="text-center">
+              <Check size={64} className="mx-auto text-green-500 mb-4" />
+              <h2 className="text-xl font-semibold mb-4 text-green-700">
+                Validação concluída com sucesso! {previewData.length} registros prontos para importação.
+              </h2>
+              <button
+                onClick={handleUpload}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
+              >
+                <Save size={20} />
+                <span>Confirmar e Importar</span>
+              </button>
+            </div>
+          ) : (
+            <div className="text-center">
+              <AlertCircle size={64} className="mx-auto text-red-500 mb-4" />
+              <h2 className="text-xl font-semibold mb-4 text-red-700">
+                Encontrados {validationErrors.length} erros na validação
+              </h2>
               <div className="mb-6 max-h-60 overflow-y-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
@@ -420,9 +393,55 @@ const Categoria: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-            )}
+              <button
+                onClick={resetForm}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition-colors"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          )
+        )}
+
+        {status === 'uploading' && (
+          <div className="text-center">
+            <div className="animate-pulse">
+              <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            </div>
+            <h2 className="text-xl font-semibold mb-4 text-blue-700">Importando dados...</h2>
+            <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5 mb-4">
+              <div 
+                className="bg-blue-600 h-2.5 rounded-full" 
+                style={{ width: `${Math.round((uploadProgress.current / uploadProgress.total) * 100)}%` }}
+              ></div>
+            </div>
+            <p className="text-gray-600">Por favor, não feche esta janela durante o processamento.</p>
+          </div>
+        )}
+
+        {status === 'success' && (
+          <div className="text-center">
+            <Check size={64} className="mx-auto text-green-500 mb-4" />
+            <h2 className="text-xl font-semibold mb-4 text-green-700">
+              Importação concluída com sucesso! {previewData.length} registros foram importados.
+            </h2>
             <button
-              onClick={() => setUploadStatus({ status: 'idle', message: '' })}
+              onClick={resetForm}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-colors"
+            >
+              Importar mais dados
+            </button>
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div className="text-center">
+            <AlertCircle size={64} className="mx-auto text-red-500 mb-4" />
+            <h2 className="text-xl font-semibold mb-4 text-red-700">
+              {validationErrors[0]?.message || 'Ocorreu um erro durante o processamento.'}
+            </h2>
+            <button
+              onClick={resetForm}
               className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition-colors"
             >
               Tentar novamente
@@ -455,7 +474,7 @@ const Categoria: React.FC = () => {
               </tr>
               <tr>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">descricao</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Descrição detalhada</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Descrição detalhada (opcional)</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Receitas com vendas</td>
               </tr>
               <tr>
@@ -472,6 +491,11 @@ const Categoria: React.FC = () => {
           </table>
         </div>
       </div>
+
+      <RelationshipsModal
+        isOpen={isRelationshipsModalOpen}
+        onClose={() => setIsRelationshipsModalOpen(false)}
+      />
     </div>
   );
 };
