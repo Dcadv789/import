@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Database, Home, FolderTree } from 'lucide-react';
+import { Database, Home, FolderTree, LineChart, Receipt } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   return (
@@ -33,10 +33,24 @@ const Navbar: React.FC = () => {
             <FolderTree size={18} />
             <span>Grupo</span>
           </Link>
+          <Link 
+            to="/indicador" 
+            className="flex items-center space-x-1 hover:text-blue-300 transition-colors"
+          >
+            <LineChart size={18} />
+            <span>Indicador</span>
+          </Link>
+          <Link 
+            to="/lancamento" 
+            className="flex items-center space-x-1 hover:text-blue-300 transition-colors"
+          >
+            <Receipt size={18} />
+            <span>Lançamento</span>
+          </Link>
         </div>
       </div>
     </nav>
   );
-};
+}
 
 export default Navbar;
