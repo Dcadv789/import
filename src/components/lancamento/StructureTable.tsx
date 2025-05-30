@@ -30,9 +30,9 @@ const StructureTable: React.FC = () => {
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">CLI001</td>
             </tr>
             <tr>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">empresa_codigo</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Código da empresa</td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">EMP001</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">empresa_cnpj</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">CNPJ da empresa</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">12345678000190</td>
             </tr>
             <tr>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">tipo</td>

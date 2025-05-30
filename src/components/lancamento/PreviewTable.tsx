@@ -18,7 +18,7 @@ const PreviewTable: React.FC<PreviewTableProps> = ({ data, onValidate }) => {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Categoria/Indicador/Cliente</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa (CNPJ)</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Valor</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mês/Ano</th>
@@ -30,7 +30,7 @@ const PreviewTable: React.FC<PreviewTableProps> = ({ data, onValidate }) => {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {row.categoria_codigo || row.indicador_codigo || row.cliente_codigo || '-'}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.empresa_codigo}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.empresa_cnpj}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.tipo}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.valor}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.mes}/{row.ano}</td>

@@ -31,7 +31,7 @@ const Lancamento: React.FC = () => {
         categoria_codigo: 'CAT001',
         indicador_codigo: '',
         cliente_codigo: '',
-        empresa_codigo: 'EMP001',
+        empresa_cnpj: '12345678000190',
         tipo: 'Receita',
         valor: 1500.50,
         mes: 3,
@@ -41,7 +41,7 @@ const Lancamento: React.FC = () => {
         categoria_codigo: '',
         indicador_codigo: 'IND001',
         cliente_codigo: '',
-        empresa_codigo: 'EMP002',
+        empresa_cnpj: '98765432000121',
         tipo: 'Despesa',
         valor: 750.25,
         mes: 4,
@@ -56,7 +56,7 @@ const Lancamento: React.FC = () => {
       ['   - categoria_codigo: Código da categoria'],
       ['   - indicador_codigo: Código do indicador'],
       ['   - cliente_codigo: Código do cliente'],
-      ['2. empresa_codigo: Código da empresa (obrigatório)'],
+      ['2. empresa_cnpj: CNPJ da empresa (obrigatório)'],
       ['3. tipo: Deve ser "Receita" ou "Despesa"'],
       ['4. valor: Valor numérico do lançamento'],
       ['5. mes: Número do mês (1-12)'],
@@ -103,12 +103,12 @@ const Lancamento: React.FC = () => {
         });
       }
 
-      if (!row.empresa_codigo) {
+      if (!row.empresa_cnpj) {
         errors.push({
           row: rowNumber,
-          field: 'empresa_codigo',
+          field: 'empresa_cnpj',
           value: '',
-          message: 'Código da empresa é obrigatório'
+          message: 'CNPJ da empresa é obrigatório'
         });
       }
 
@@ -206,14 +206,14 @@ const Lancamento: React.FC = () => {
       const { data: empresa } = await supabase
         .from('empresas')
         .select('id')
-        .eq('codigo', row.empresa_codigo)
+        .eq('cnpj', row.empresa_cnpj)
         .single();
 
       if (!empresa) {
         errors.push({
           row: rowNumber,
-          field: 'empresa_codigo',
-          value: row.empresa_codigo,
+          field: 'empresa_cnpj',
+          value: row.empresa_cnpj,
           message: 'Empresa não encontrada'
         });
       }
@@ -345,7 +345,7 @@ const Lancamento: React.FC = () => {
         const { data: empresa } = await supabase
           .from('empresas')
           .select('id')
-          .eq('codigo', row.empresa_codigo)
+          .eq('cnpj', row.empresa_cnpj)
           .single();
         empresaId = empresa?.id;
 
@@ -455,9 +455,7 @@ const Lancamento: React.FC = () => {
             <div className="animate-pulse">
               <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             </div>
-            <h2 className="text-xl font-semibold mb-4 text-blue-700">Vali
-
-dando dados...</h2>
+            <h2 className="text-xl font-semibold mb-4 text-blue-700">Validando dados...</h2>
           </div>
         )}
 
