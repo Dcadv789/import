@@ -272,7 +272,7 @@ const ComponentesModal: React.FC<ComponentesModalProps> = ({ isOpen, onClose }) 
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
           {/* Lista de Contas */}
           <div>
             <h3 className="text-lg font-semibold mb-4">Contas</h3>
@@ -303,7 +303,7 @@ const ComponentesModal: React.FC<ComponentesModalProps> = ({ isOpen, onClose }) 
           </div>
 
           {/* Componentes Disponíveis */}
-          <div className="md:col-span-2">
+          <div className="md:col-span-3">
             <div className="mb-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -317,7 +317,7 @@ const ComponentesModal: React.FC<ComponentesModalProps> = ({ isOpen, onClose }) 
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               {/* Categorias Disponíveis */}
               <div>
                 <h3 className="text-lg font-semibold mb-4">Categorias</h3>
@@ -363,21 +363,20 @@ const ComponentesModal: React.FC<ComponentesModalProps> = ({ isOpen, onClose }) 
                 </div>
               </div>
 
-              {/* Indicadores e Contas Disponíveis */}
+              {/* Indicadores Disponíveis */}
               <div>
-                <h3 className="text-lg font-semibold mb-4">Indicadores e Contas</h3>
+                <h3 className="text-lg font-semibold mb-4">Indicadores</h3>
                 <div className="border rounded-lg p-4 h-[calc(100vh-380px)] overflow-y-auto">
                   {loading ? (
                     <div className="flex items-center justify-center h-full">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
                     </div>
-                  ) : indicadores.length === 0 && contasDisponiveis.length === 0 ? (
+                  ) : indicadores.length === 0 ? (
                     <p className="text-gray-500 text-center mt-8">
-                      Nenhum indicador ou conta disponível
+                      Nenhum indicador disponível
                     </p>
                   ) : (
-                    <div className="space-y-4">
-                      {/* Indicadores */}
+                    <div className="space-y-2">
                       {indicadores
                         .filter(indicador =>
                           indicador.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -404,8 +403,25 @@ const ComponentesModal: React.FC<ComponentesModalProps> = ({ isOpen, onClose }) 
                             </div>
                           </button>
                         ))}
+                    </div>
+                  )}
+                </div>
+              </div>
 
-                      {/* Contas */}
+              {/* Contas Disponíveis */}
+              <div>
+                <h3 className="text-lg font-semibold mb-4">Contas</h3>
+                <div className="border rounded-lg p-4 h-[calc(100vh-380px)] overflow-y-auto">
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                    </div>
+                  ) : contasDisponiveis.length === 0 ? (
+                    <p className="text-gray-500 text-center mt-8">
+                      Nenhuma conta disponível
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
                       {contasDisponiveis
                         .filter(conta =>
                           conta.nome.toLowerCase().includes(searchTerm.toLowerCase())

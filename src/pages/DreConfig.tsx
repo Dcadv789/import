@@ -150,13 +150,6 @@ const DreConfig: React.FC = () => {
                   >
                     <Edit2 size={18} />
                   </button>
-                  <button
-                    onClick={() => setIsComponentesModalOpen(true)}
-                    className="text-purple-600 hover:text-purple-800 transition-colors"
-                    title="Gerenciar componentes"
-                  >
-                    <LinkIcon size={18} />
-                  </button>
                 </div>
               </td>
             </tr>
@@ -176,6 +169,13 @@ const DreConfig: React.FC = () => {
           </p>
         </div>
         <div className="flex space-x-4">
+          <button
+            onClick={() => setIsComponentesModalOpen(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
+          >
+            <LinkIcon size={20} />
+            <span>Gerenciar Componentes</span>
+          </button>
           <button
             onClick={() => setIsVincularEmpresasModalOpen(true)}
             className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
