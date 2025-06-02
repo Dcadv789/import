@@ -1,16 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Link as LinkIcon, Search, ChevronRight, ChevronDown, Building2 } from 'lucide-react';
 import NovaContaModal from '../components/dre/NovaContaModal';
 import VincularEmpresasModal from '../components/dre/VincularEmpresasModal';
+import ComponentesModal from '../components/dre/ComponentesModal';
+import { supabase } from '../lib/supabase';
 
 interface DreConta {
   id: string;
-  codigo: string;
   nome: string;
-  tipo: string;
-  nivel: number;
-  parentId: string | null;
-  expanded?: boolean;
+  ordem: number;
+  simbolo: string;
+  conta_pai: string | null;
+  ativo: boolean;
+  visivel: boolean;
+}
+
+interface Empresa {
+  id: string;
+  razao_social: string;
 }
 
 const DreConfig: React.FC = () => {
@@ -19,23 +26,49 @@ const DreConfig: React.FC = () => {
   const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set());
   const [isNovaContaModalOpen, setIsNovaContaModalOpen] = useState(false);
   const [isVincularEmpresasModalOpen, setIsVincularEmpresasModalOpen] = useState(false);
+  const [isComponentesModalOpen, setIsComponentesModalOpen] = useState(false);
   const [selectedParentAccount, setSelectedParentAccount] = useState<DreConta | null>(null);
-  
-  // Mock data - replace with actual data from Supabase
-  const empresas = [
-    { id: '1', nome: 'Empresa A' },
-    { id: '2', nome: 'Empresa B' },
-    { id: '3', nome: 'Empresa C' },
-  ];
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [contas, setContas] = useState<DreConta[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const contas: DreConta[] = [
-    { id: '1', codigo: '1', nome: 'Receita Bruta', tipo: 'Receita', nivel: 1, parentId: null },
-    { id: '2', codigo: '1.1', nome: 'Vendas de Produtos', tipo: 'Receita', nivel: 2, parentId: '1' },
-    { id: '3', codigo: '1.2', nome: 'Vendas de Serviços', tipo: 'Receita', nivel: 2, parentId: '1' },
-    { id: '4', codigo: '2', nome: 'Custos', tipo: 'Custo', nivel: 1, parentId: null },
-    { id: '5', codigo: '2.1', nome: 'Custos Diretos', tipo: 'Custo', nivel: 2, parentId: '4' },
-    { id: '6', codigo: '2.1.1', nome: 'Matéria Prima', tipo: 'Custo', nivel: 3, parentId: '5' },
-  ];
+  useEffect(() => {
+    loadEmpresas();
+    loadContas();
+  }, []);
+
+  const loadEmpresas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('empresas')
+        .select('id, razao_social')
+        .eq('ativo', true)
+        .order('razao_social');
+
+      if (error) throw error;
+      setEmpresas(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar empresas:', error);
+    }
+  };
+
+  const loadContas = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('dre_contas')
+        .select('*')
+        .eq('ativo', true)
+        .order('ordem');
+
+      if (error) throw error;
+      setContas(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar contas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleExpand = (accountId: string) => {
     setExpandedAccounts(prev => {
@@ -50,7 +83,7 @@ const DreConfig: React.FC = () => {
   };
 
   const getChildAccounts = (parentId: string | null): DreConta[] => {
-    return contas.filter(conta => conta.parentId === parentId);
+    return contas.filter(conta => conta.conta_pai === parentId);
   };
 
   const handleAddSubAccount = (parentAccount: DreConta) => {
@@ -64,11 +97,10 @@ const DreConfig: React.FC = () => {
     return accounts
       .filter(conta =>
         searchTerm === '' ||
-        conta.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        conta.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+        conta.nome.toLowerCase().includes(searchTerm.toLowerCase())
       )
       .map((conta) => {
-        const hasChildren = contas.some(c => c.parentId === conta.id);
+        const hasChildren = contas.some(c => c.conta_pai === conta.id);
         const isExpanded = expandedAccounts.has(conta.id);
 
         return (
@@ -85,7 +117,7 @@ const DreConfig: React.FC = () => {
                     </button>
                   )}
                   {!hasChildren && <span className="w-[26px]" />}
-                  {conta.codigo}
+                  {conta.ordem}
                 </div>
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
@@ -93,13 +125,15 @@ const DreConfig: React.FC = () => {
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                  conta.tipo === 'Receita' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  conta.simbolo === '+' ? 'bg-green-100 text-green-800' : 
+                  conta.simbolo === '-' ? 'bg-red-100 text-red-800' : 
+                  'bg-blue-100 text-blue-800'
                 }`}>
-                  {conta.tipo}
+                  {conta.simbolo}
                 </span>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {conta.nivel}
+                {level + 1}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 <div className="flex space-x-2">
@@ -117,9 +151,9 @@ const DreConfig: React.FC = () => {
                     <Edit2 size={18} />
                   </button>
                   <button
-                    onClick={() => setIsVincularEmpresasModalOpen(true)}
+                    onClick={() => setIsComponentesModalOpen(true)}
                     className="text-purple-600 hover:text-purple-800 transition-colors"
-                    title="Relacionar com empresas"
+                    title="Gerenciar componentes"
                   >
                     <LinkIcon size={18} />
                   </button>
@@ -177,7 +211,7 @@ const DreConfig: React.FC = () => {
               <option value="">Todas as empresas</option>
               {empresas.map(empresa => (
                 <option key={empresa.id} value={empresa.id}>
-                  {empresa.nome}
+                  {empresa.razao_social}
                 </option>
               ))}
             </select>
@@ -190,7 +224,7 @@ const DreConfig: React.FC = () => {
               <input
                 type="text"
                 id="search"
-                placeholder="Buscar por código ou nome..."
+                placeholder="Buscar por nome..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
@@ -201,20 +235,26 @@ const DreConfig: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Código</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nível</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {renderAccounts()}
-            </tbody>
-          </table>
+          {loading ? (
+            <div className="flex justify-center items-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ordem</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Símbolo</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nível</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {renderAccounts()}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
@@ -230,6 +270,11 @@ const DreConfig: React.FC = () => {
       <VincularEmpresasModal
         isOpen={isVincularEmpresasModalOpen}
         onClose={() => setIsVincularEmpresasModalOpen(false)}
+      />
+
+      <ComponentesModal
+        isOpen={isComponentesModalOpen}
+        onClose={() => setIsComponentesModalOpen(false)}
       />
     </div>
   );

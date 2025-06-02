@@ -1,29 +1,54 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 interface NovaContaModalProps {
   isOpen: boolean;
   onClose: () => void;
   parentAccount?: {
     id: string;
-    codigo: string;
     nome: string;
+    ordem: number;
   } | null;
 }
 
 const NovaContaModal: React.FC<NovaContaModalProps> = ({ isOpen, onClose, parentAccount }) => {
   const [formData, setFormData] = useState({
-    codigo: '',
     nome: '',
-    tipo: 'Receita',
+    ordem: '',
+    simbolo: '+',
   });
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement account creation logic
-    onClose();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase
+        .from('dre_contas')
+        .insert({
+          nome: formData.nome,
+          ordem: parseInt(formData.ordem),
+          simbolo: formData.simbolo,
+          conta_pai: parentAccount?.id || null,
+          ativo: true,
+          visivel: true
+        });
+
+      if (error) throw error;
+      
+      onClose();
+      // Recarregar a página para atualizar a lista
+      window.location.reload();
+    } catch (error) {
+      console.error('Erro ao criar conta:', error);
+      alert('Erro ao criar conta. Por favor, tente novamente.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -49,20 +74,20 @@ const NovaContaModal: React.FC<NovaContaModalProps> = ({ isOpen, onClose, parent
               </label>
               <div className="p-3 bg-gray-50 rounded-lg">
                 <p className="text-sm font-medium">{parentAccount.nome}</p>
-                <p className="text-sm text-gray-500">Código: {parentAccount.codigo}</p>
+                <p className="text-sm text-gray-500">Ordem: {parentAccount.ordem}</p>
               </div>
             </div>
           )}
 
           <div className="mb-4">
-            <label htmlFor="codigo" className="block text-sm font-medium text-gray-700 mb-1">
-              Código
+            <label htmlFor="ordem" className="block text-sm font-medium text-gray-700 mb-1">
+              Ordem
             </label>
             <input
-              type="text"
-              id="codigo"
-              value={formData.codigo}
-              onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
+              type="number"
+              id="ordem"
+              value={formData.ordem}
+              onChange={(e) => setFormData({ ...formData, ordem: e.target.value })}
               className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
               required
             />
@@ -83,18 +108,18 @@ const NovaContaModal: React.FC<NovaContaModalProps> = ({ isOpen, onClose, parent
           </div>
 
           <div className="mb-6">
-            <label htmlFor="tipo" className="block text-sm font-medium text-gray-700 mb-1">
-              Tipo
+            <label htmlFor="simbolo" className="block text-sm font-medium text-gray-700 mb-1">
+              Símbolo
             </label>
             <select
-              id="tipo"
-              value={formData.tipo}
-              onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+              id="simbolo"
+              value={formData.simbolo}
+              onChange={(e) => setFormData({ ...formData, simbolo: e.target.value })}
               className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
             >
-              <option value="Receita">Receita</option>
-              <option value="Custo">Custo</option>
-              <option value="Despesa">Despesa</option>
+              <option value="+">+ (Adição)</option>
+              <option value="-">- (Subtração)</option>
+              <option value="=">=  (Resultado)</option>
             </select>
           </div>
 
@@ -103,14 +128,16 @@ const NovaContaModal: React.FC<NovaContaModalProps> = ({ isOpen, onClose, parent
               type="button"
               onClick={onClose}
               className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              disabled={loading}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors disabled:opacity-50"
+              disabled={loading}
             >
-              Salvar
+              {loading ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
         </form>
