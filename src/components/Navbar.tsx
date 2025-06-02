@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Database, Home, FolderTree, LineChart, Receipt } from 'lucide-react';
+import { Database, Home, FolderTree, LineChart, Receipt, Calculator } from 'lucide-react';
 
 const Navbar: React.FC = () => {
   return (
@@ -46,6 +46,13 @@ const Navbar: React.FC = () => {
           >
             <Receipt size={18} />
             <span>Lançamento</span>
+          </Link>
+          <Link 
+            to="/dre-config" 
+            className="flex items-center space-x-1 hover:text-blue-300 transition-colors"
+          >
+            <Calculator size={18} />
+            <span>DRE Config</span>
           </Link>
         </div>
       </div>

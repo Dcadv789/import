@@ -6,6 +6,7 @@ import Categoria from './pages/Categoria';
 import Grupo from './pages/Grupo';
 import Indicador from './pages/Indicador';
 import Lancamento from './pages/Lancamento';
+import DreConfig from './pages/DreConfig';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path="/grupo" element={<Grupo />} />
           <Route path="/indicador" element={<Indicador />} />
           <Route path="/lancamento" element={<Lancamento />} />
+          <Route path="/dre-config" element={<DreConfig />} />
         </Routes>
       </Layout>
     </Router>
