@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Link as LinkIcon, Search, ChevronRight, ChevronDown, Building2 } from 'lucide-react';
+import { Plus, Edit2, Link as LinkIcon, Search, ChevronRight, ChevronDown, Building2, Upload, FolderTree } from 'lucide-react';
 import NovaContaModal from '../components/dre/NovaContaModal';
 import VincularEmpresasModal from '../components/dre/VincularEmpresasModal';
 import ComponentesModal from '../components/dre/ComponentesModal';
+import UploadContasModal from '../components/dre/UploadContasModal';
+import EditarContaModal from '../components/dre/EditarContaModal';
+import GerenciarRaizModal from '../components/dre/GerenciarRaizModal';
 import { supabase } from '../lib/supabase';
 
 interface DreConta {
@@ -27,7 +30,11 @@ const DreConfig: React.FC = () => {
   const [isNovaContaModalOpen, setIsNovaContaModalOpen] = useState(false);
   const [isVincularEmpresasModalOpen, setIsVincularEmpresasModalOpen] = useState(false);
   const [isComponentesModalOpen, setIsComponentesModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isGerenciarRaizModalOpen, setIsGerenciarRaizModalOpen] = useState(false);
   const [selectedParentAccount, setSelectedParentAccount] = useState<DreConta | null>(null);
+  const [selectedEditAccount, setSelectedEditAccount] = useState<DreConta | null>(null);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [contas, setContas] = useState<DreConta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,6 +98,11 @@ const DreConfig: React.FC = () => {
     setIsNovaContaModalOpen(true);
   };
 
+  const handleEditAccount = (account: DreConta) => {
+    setSelectedEditAccount(account);
+    setIsEditModalOpen(true);
+  };
+
   const renderAccounts = (parentId: string | null = null, level: number = 0) => {
     const accounts = getChildAccounts(parentId);
     
@@ -145,6 +157,7 @@ const DreConfig: React.FC = () => {
                     <Plus size={18} />
                   </button>
                   <button
+                    onClick={() => handleEditAccount(conta)}
                     className="text-blue-600 hover:text-blue-800 transition-colors"
                     title="Editar conta"
                   >
@@ -170,6 +183,13 @@ const DreConfig: React.FC = () => {
         </div>
         <div className="flex space-x-4">
           <button
+            onClick={() => setIsGerenciarRaizModalOpen(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
+          >
+            <FolderTree size={20} />
+            <span>Gerenciar Raiz</span>
+          </button>
+          <button
             onClick={() => setIsComponentesModalOpen(true)}
             className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
           >
@@ -182,6 +202,13 @@ const DreConfig: React.FC = () => {
           >
             <Building2 size={20} />
             <span>Vincular Empresas</span>
+          </button>
+          <button
+            onClick={() => setIsUploadModalOpen(true)}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg inline-flex items-center space-x-2 transition-colors"
+          >
+            <Upload size={20} />
+            <span>Upload em Massa</span>
           </button>
           <button
             onClick={() => {
@@ -275,6 +302,25 @@ const DreConfig: React.FC = () => {
       <ComponentesModal
         isOpen={isComponentesModalOpen}
         onClose={() => setIsComponentesModalOpen(false)}
+      />
+
+      <UploadContasModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+      />
+
+      <EditarContaModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedEditAccount(null);
+        }}
+        conta={selectedEditAccount}
+      />
+
+      <GerenciarRaizModal
+        isOpen={isGerenciarRaizModalOpen}
+        onClose={() => setIsGerenciarRaizModalOpen(false)}
       />
     </div>
   );
