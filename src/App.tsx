@@ -8,6 +8,7 @@ import Indicador from './pages/Indicador';
 import Lancamento from './pages/Lancamento';
 import DreConfig from './pages/DreConfig';
 import Vendas from './pages/Vendas';
+import Clientes from './pages/Clientes';
 
 function App() {
   return (
@@ -21,10 +22,11 @@ function App() {
           <Route path="/lancamento" element={<Lancamento />} />
           <Route path="/dre-config" element={<DreConfig />} />
           <Route path="/vendas" element={<Vendas />} />
+          <Route path="/clientes" element={<Clientes />} />
         </Routes>
       </Layout>
     </Router>
   );
 }
 
-export default App;
+export default App
