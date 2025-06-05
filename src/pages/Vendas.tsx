@@ -22,6 +22,25 @@ const Vendas: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const formatDateToISO = (dateStr: string): string | null => {
+    // Tenta converter a data do formato DD/MM/YYYY para YYYY-MM-DD
+    const parts = dateStr.split('/');
+    if (parts.length !== 3) return null;
+
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+
+    // Validação básica da data
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+    if (day < 1 || day > 31) return null;
+    if (month < 1 || month > 12) return null;
+    if (year < 1900 || year > 9999) return null;
+
+    // Formata a data no padrão YYYY-MM-DD
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
   const downloadTemplate = () => {
     const wb = XLSX.utils.book_new();
     
@@ -35,7 +54,7 @@ const Vendas: React.FC = () => {
         valor: 1500.50,
         origem: 'Brasil',
         registro_venda: 'Venda de serviço de consultoria',
-        data_venda: '2025-01-15'
+        data_venda: '15/01/2025'
       }
     ];
 
@@ -50,7 +69,7 @@ const Vendas: React.FC = () => {
       ['6. valor: Valor da venda'],
       ['7. origem: País de origem da venda'],
       ['8. registro_venda: Descrição da venda'],
-      ['9. data_venda: Data da venda (YYYY-MM-DD)'],
+      ['9. data_venda: Data da venda (DD/MM/AAAA)'],
       [''],
       ['Exemplos de dados:']
     ];
@@ -141,6 +160,16 @@ const Vendas: React.FC = () => {
           value: '',
           message: 'Data da venda é obrigatória'
         });
+      } else {
+        const formattedDate = formatDateToISO(String(row.data_venda));
+        if (!formattedDate) {
+          errors.push({
+            row: rowNumber,
+            field: 'data_venda',
+            value: row.data_venda,
+            message: 'Data inválida. Use o formato DD/MM/AAAA'
+          });
+        }
       }
 
       // Validar existência dos relacionamentos
@@ -362,6 +391,9 @@ const Vendas: React.FC = () => {
           .eq('codigo', row.servico_codigo)
           .single();
 
+        // Converter a data do formato DD/MM/YYYY para YYYY-MM-DD
+        const formattedDate = formatDateToISO(String(row.data_venda));
+
         const { error } = await supabase
           .from('registro_de_vendas')
           .insert({
@@ -374,7 +406,7 @@ const Vendas: React.FC = () => {
             origem: row.origem,
             nome_cliente: null,
             registro_venda: row.registro_venda,
-            data_venda: row.data_venda
+            data_venda: formattedDate
           });
 
         if (error) throw error;

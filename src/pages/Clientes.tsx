@@ -65,12 +65,12 @@ const Clientes: React.FC = () => {
       .single();
 
     if (!lastClient) {
-      return 'CLI001';
+      return 'C0001';
     }
 
-    const lastNumber = parseInt(lastClient.codigo.replace('CLI', ''));
+    const lastNumber = parseInt(lastClient.codigo.substring(1));
     const newNumber = lastNumber + 1;
-    return `CLI${String(newNumber).padStart(3, '0')}`;
+    return `C${String(newNumber).padStart(4, '0')}`;
   };
 
   const validateData = async (data: any[]): Promise<ValidationError[]> => {
