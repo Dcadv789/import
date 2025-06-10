@@ -14,7 +14,8 @@ interface ValidationError {
 
 interface ValidationResult {
   errors: ValidationError[];
-  duplicates: any[];
+  duplicatesInDatabase: any[];
+  duplicatesInSpreadsheet: any[];
   validRecords: any[];
 }
 
@@ -23,7 +24,12 @@ type ImportStatus = 'idle' | 'preview' | 'validating' | 'validated' | 'uploading
 const Clientes: React.FC = () => {
   const [status, setStatus] = useState<ImportStatus>('idle');
   const [isDragging, setIsDragging] = useState(false);
-  const [validationResult, setValidationResult] = useState<ValidationResult>({ errors: [], duplicates: [], validRecords: [] });
+  const [validationResult, setValidationResult] = useState<ValidationResult>({ 
+    errors: [], 
+    duplicatesInDatabase: [], 
+    duplicatesInSpreadsheet: [],
+    validRecords: [] 
+  });
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,9 +87,10 @@ const Clientes: React.FC = () => {
 
   const validateData = async (data: any[]): Promise<ValidationResult> => {
     const errors: ValidationError[] = [];
-    const duplicates: any[] = [];
+    const duplicatesInDatabase: any[] = [];
+    const duplicatesInSpreadsheet: any[] = [];
     const validRecords: any[] = [];
-    const processedCnpjs = new Set<string>();
+    const processedCnpjs = new Map<string, number>(); // CNPJ -> primeira linha onde aparece
 
     // Primeiro, buscar todos os CNPJs já cadastrados no banco
     const { data: existingClients } = await supabase
@@ -157,12 +164,12 @@ const Clientes: React.FC = () => {
         }
       }
 
-      // Verificar duplicatas
+      // Verificar duplicatas apenas se não há erros básicos
       if (!hasErrors && row.cnpj) {
         // Verificar se já existe no banco de dados
         if (existingCnpjs.has(row.cnpj)) {
           const existingClient = existingClients?.find(client => client.cnpj === row.cnpj);
-          duplicates.push({
+          duplicatesInDatabase.push({
             ...row,
             rowNumber,
             existingRazaoSocial: existingClient?.razao_social
@@ -170,23 +177,22 @@ const Clientes: React.FC = () => {
         }
         // Verificar duplicatas na própria planilha
         else if (processedCnpjs.has(row.cnpj)) {
-          errors.push({
-            row: rowNumber,
-            field: 'cnpj',
-            value: row.cnpj,
-            message: 'CNPJ duplicado na planilha'
+          const firstOccurrenceRow = processedCnpjs.get(row.cnpj);
+          duplicatesInSpreadsheet.push({
+            ...row,
+            rowNumber,
+            firstOccurrenceRow
           });
-          hasErrors = true;
         }
         // Se não há duplicatas e não há erros, é um registro válido
         else {
-          processedCnpjs.add(row.cnpj);
+          processedCnpjs.set(row.cnpj, rowNumber);
           validRecords.push({ ...row, rowNumber });
         }
       }
     }
 
-    return { errors, duplicates, validRecords };
+    return { errors, duplicatesInDatabase, duplicatesInSpreadsheet, validRecords };
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -214,7 +220,8 @@ const Clientes: React.FC = () => {
           value: file.type,
           message: 'Formato de arquivo inválido. Por favor, envie uma planilha Excel ou CSV.'
         }],
-        duplicates: [],
+        duplicatesInDatabase: [],
+        duplicatesInSpreadsheet: [],
         validRecords: []
       });
       return;
@@ -235,7 +242,8 @@ const Clientes: React.FC = () => {
             value: '',
             message: 'A planilha está vazia. Por favor, verifique o arquivo e tente novamente.'
           }],
-          duplicates: [],
+          duplicatesInDatabase: [],
+          duplicatesInSpreadsheet: [],
           validRecords: []
         });
         return;
@@ -252,7 +260,8 @@ const Clientes: React.FC = () => {
           value: '',
           message: `Erro ao processar arquivo: ${(error as Error).message}`
         }],
-        duplicates: [],
+        duplicatesInDatabase: [],
+        duplicatesInSpreadsheet: [],
         validRecords: []
       });
     }
@@ -331,7 +340,7 @@ const Clientes: React.FC = () => {
 
   const resetForm = () => {
     setStatus('idle');
-    setValidationResult({ errors: [], duplicates: [], validRecords: [] });
+    setValidationResult({ errors: [], duplicatesInDatabase: [], duplicatesInSpreadsheet: [], validRecords: [] });
     setPreviewData([]);
     setUploadProgress({ current: 0, total: 0 });
     if (fileInputRef.current) {
@@ -411,17 +420,17 @@ const Clientes: React.FC = () => {
 
         {status === 'validated' && (
           <>
-            {/* Mostrar informações sobre duplicatas */}
-            {validationResult.duplicates.length > 0 && (
+            {/* Mostrar informações sobre duplicatas no banco de dados */}
+            {validationResult.duplicatesInDatabase.length > 0 && (
               <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex items-center mb-2">
                   <Info size={20} className="text-yellow-600 mr-2" />
                   <h3 className="text-lg font-semibold text-yellow-800">
-                    Clientes já cadastrados encontrados
+                    Clientes já cadastrados no sistema
                   </h3>
                 </div>
                 <p className="text-yellow-700 mb-4">
-                  {validationResult.duplicates.length} cliente(s) já estão cadastrados no sistema e serão ignorados na importação:
+                  {validationResult.duplicatesInDatabase.length} cliente(s) já estão cadastrados no sistema e serão ignorados na importação:
                 </p>
                 <div className="max-h-40 overflow-y-auto">
                   <table className="min-w-full divide-y divide-yellow-200">
@@ -434,12 +443,49 @@ const Clientes: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-yellow-200">
-                      {validationResult.duplicates.map((duplicate, index) => (
+                      {validationResult.duplicatesInDatabase.map((duplicate, index) => (
                         <tr key={index}>
                           <td className="px-4 py-2 text-sm text-yellow-800">{duplicate.rowNumber}</td>
                           <td className="px-4 py-2 text-sm text-yellow-800">{duplicate.cnpj}</td>
                           <td className="px-4 py-2 text-sm text-yellow-800">{duplicate.razao_social}</td>
                           <td className="px-4 py-2 text-sm text-yellow-800">{duplicate.existingRazaoSocial}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Mostrar informações sobre duplicatas na planilha */}
+            {validationResult.duplicatesInSpreadsheet.length > 0 && (
+              <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <Info size={20} className="text-orange-600 mr-2" />
+                  <h3 className="text-lg font-semibold text-orange-800">
+                    Duplicatas encontradas na planilha
+                  </h3>
+                </div>
+                <p className="text-orange-700 mb-4">
+                  {validationResult.duplicatesInSpreadsheet.length} cliente(s) aparecem duplicados na planilha. Apenas a primeira ocorrência será importada:
+                </p>
+                <div className="max-h-40 overflow-y-auto">
+                  <table className="min-w-full divide-y divide-orange-200">
+                    <thead className="bg-orange-100">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-orange-700 uppercase">Linha Duplicada</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-orange-700 uppercase">Primeira Ocorrência</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-orange-700 uppercase">CNPJ</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-orange-700 uppercase">Razão Social</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-orange-200">
+                      {validationResult.duplicatesInSpreadsheet.map((duplicate, index) => (
+                        <tr key={index}>
+                          <td className="px-4 py-2 text-sm text-orange-800">{duplicate.rowNumber}</td>
+                          <td className="px-4 py-2 text-sm text-orange-800">{duplicate.firstOccurrenceRow}</td>
+                          <td className="px-4 py-2 text-sm text-orange-800">{duplicate.cnpj}</td>
+                          <td className="px-4 py-2 text-sm text-orange-800">{duplicate.razao_social}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -496,14 +542,18 @@ const Clientes: React.FC = () => {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                   <div className="text-green-800">
                     <p className="text-lg font-semibold mb-2">Resumo da importação:</p>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
                       <div className="bg-white rounded p-3">
                         <p className="font-medium">Total na planilha:</p>
                         <p className="text-2xl font-bold text-blue-600">{previewData.length}</p>
                       </div>
                       <div className="bg-white rounded p-3">
                         <p className="font-medium">Já cadastrados:</p>
-                        <p className="text-2xl font-bold text-yellow-600">{validationResult.duplicates.length}</p>
+                        <p className="text-2xl font-bold text-yellow-600">{validationResult.duplicatesInDatabase.length}</p>
+                      </div>
+                      <div className="bg-white rounded p-3">
+                        <p className="font-medium">Duplicados na planilha:</p>
+                        <p className="text-2xl font-bold text-orange-600">{validationResult.duplicatesInSpreadsheet.length}</p>
                       </div>
                       <div className="bg-white rounded p-3">
                         <p className="font-medium">Serão importados:</p>
@@ -530,7 +580,7 @@ const Clientes: React.FC = () => {
                   Nenhum cliente novo para importar
                 </h2>
                 <p className="text-gray-600 mb-6">
-                  Todos os clientes da planilha já estão cadastrados no sistema.
+                  Todos os clientes da planilha já estão cadastrados no sistema ou são duplicatas.
                 </p>
                 <button
                   onClick={resetForm}
@@ -571,9 +621,14 @@ const Clientes: React.FC = () => {
               <p className="text-green-800">
                 {validationResult.validRecords.length} novos clientes foram importados com sucesso.
               </p>
-              {validationResult.duplicates.length > 0 && (
+              {validationResult.duplicatesInDatabase.length > 0 && (
                 <p className="text-green-700 mt-2">
-                  {validationResult.duplicates.length} clientes já cadastrados foram ignorados.
+                  {validationResult.duplicatesInDatabase.length} clientes já cadastrados foram ignorados.
+                </p>
+              )}
+              {validationResult.duplicatesInSpreadsheet.length > 0 && (
+                <p className="text-green-700 mt-2">
+                  {validationResult.duplicatesInSpreadsheet.length} duplicatas na planilha foram ignoradas.
                 </p>
               )}
             </div>
