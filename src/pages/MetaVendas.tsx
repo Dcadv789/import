@@ -106,7 +106,7 @@ const MetaVendas: React.FC = () => {
         .from('pessoas')
         .select('id, codigo, nome, empresa_id')
         .eq('empresa_id', selectedEmpresa)
-        .eq('ativo', true)
+        .eq('Ativo', true)
         .order('nome');
 
       if (error) throw error;
