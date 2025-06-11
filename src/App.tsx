@@ -10,6 +10,7 @@ import DreConfig from './pages/DreConfig';
 import Vendas from './pages/Vendas';
 import Clientes from './pages/Clientes';
 import DespesasVendedores from './pages/DespesasVendedores';
+import MetaVendas from './pages/MetaVendas';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
           <Route path="/vendas" element={<Vendas />} />
           <Route path="/clientes" element={<Clientes />} />
           <Route path="/despesas-vendedores" element={<DespesasVendedores />} />
+          <Route path="/meta-vendas" element={<MetaVendas />} />
         </Routes>
       </Layout>
     </Router>
